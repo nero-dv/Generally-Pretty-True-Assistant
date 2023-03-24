@@ -1,1 +1,6 @@
 api_key.txt
+ignore/*
+fonts/*
+.vscode/*
+fonts.py
+temp.py

@@ -3,23 +3,40 @@ import sys
 
 import openai
 import tiktoken
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction
+from numpy import hsplit
+from PySide6.QtCore import Qt, QEvent, QObject
+from PySide6.QtGui import QAction, QFont, QFontDatabase, QShortcut, QKeyEvent
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog,
                                QHBoxLayout, QInputDialog, QLabel, QLineEdit,
                                QMainWindow, QMenu, QMenuBar, QMessageBox,
                                QPushButton, QSplitter, QTabWidget, QTextEdit,
                                QVBoxLayout, QWidget)
 
+class ChatInput(QTextEdit):
+    def __init__(self, submit_text, parent=None):
+        super().__init__(parent)
+        self.submit_text = submit_text
 
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key_Return and not event.modifiers() & Qt.ShiftModifier:
+            self.submit_text()
+        else:
+            super().keyPressEvent(event)
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.first_message = True
         self.init_ui()
-        
 
     def init_ui(self):
+        fontdb = QFontDatabase()
+        id1 = fontdb.addApplicationFont("./fonts/Raleway-Regular.ttf")
+        id2 = fontdb.addApplicationFont("./fonts/ShareTechMono-Regular.ttf")
+        id3 = fontdb.addApplicationFont("./fonts/Figtree-Regular.ttf")
+        chat_font = QFont(fontdb.applicationFontFamilies(id1))
+        console_font = QFont(fontdb.applicationFontFamilies(id2))
+        info_font = QFont(fontdb.applicationFontFamilies(id3))
+        
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
@@ -34,22 +51,34 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.model_dropdown)
 
         splitter = QSplitter(Qt.Vertical)  # type: ignore
-
+        
         self.chat = QTextEdit()
         self.chat.setReadOnly(True)
+        response_font = chat_font
+        response_font.setPointSize(11)
+        self.chat.setFont(response_font)
         self.chat.setPlaceholderText("Your assistant's response will appear here")
         splitter.addWidget(self.chat)
 
-        self.input_text_edit = QTextEdit()
+        self.input_text_edit = ChatInput(self.submit_text)
+        input_text_font = chat_font
+        input_text_font.setPointSize(11)
+        self.input_text_edit.setFont(input_text_font)
         self.input_text_edit.setPlaceholderText("Enter your text here")
         self.input_text_edit.setFocus()
         self.input_text_edit.textChanged.connect(self.parse_text)  # type: ignore
         self.input_text_edit.setAcceptRichText(False)
+            
+        
         splitter.addWidget(self.input_text_edit)
 
         self.parsed_info_label = QLabel(
-            f"Token count: 0\tWord count: 0,\tCharacter count: 0\n(Token Counts are estimated with Tiktoken\nand don't include special tokens or tokens added by the model and its response)"
+            f"Token count: 0\tWord count: 0,\tCharacter count: 0\n(Token Counts are estimated with Tiktoken and don't include special tokens or tokens added by the model and its response)"
         )
+        self.parsed_info_label.setWordWrap(True)
+        pil_font = info_font
+        pil_font.setPointSize(9)
+        self.parsed_info_label.setFont(pil_font)
         splitter.addWidget(self.parsed_info_label)
 
         tab_widget = QTabWidget()
@@ -57,18 +86,29 @@ class MainWindow(QMainWindow):
         first_tab_layout = QVBoxLayout()
         first_tab_layout.addWidget(splitter)
         splitter.setSizes([300, 100, 20])
+        
+
 
         bottom_layout = QHBoxLayout()
         submit_button = QPushButton("Submit")
         bottom_layout.addWidget(submit_button)
         
+        
         submit_button.clicked.connect(self.submit_text)  # type: ignore
+        submit_button.setAutoDefault(True)
+        submit_button.setShortcut("Ctrl+Enter")
+        submit_button.keyPressEvent = self.submit_text  # type: ignore
+        
+
         
         first_tab_layout.addLayout(bottom_layout)
         first_tab_widget.setLayout(first_tab_layout)
         tab_widget.addTab(first_tab_widget, self.model_dropdown.currentText())
 
         self.history = QTextEdit()
+        history_font = console_font
+        self.history.setFont(history_font)
+        history_font.setPointSize(11)
         self.history.setReadOnly(True)
         self.history.setPlaceholderText(
             "Your assistant's raw responses will appear here"
@@ -82,6 +122,7 @@ class MainWindow(QMainWindow):
 
         main_layout.addWidget(tab_widget)
         central_widget.setLayout(main_layout)
+
 
     def create_menu(self):
         menu_bar = QMenuBar(self)
@@ -188,9 +229,10 @@ class MainWindow(QMainWindow):
 
     def parse_text(self):
         input_text = self.input_text_edit.toPlainText()
+        # if input_text.endswith("\n"):
+        #     self.submit_text()
         parsed_info = self.parse_information(input_text)
         self.parsed_info_label.setText(parsed_info)
-       
 
     @staticmethod
     def parse_information(text, model="cl100k_base"):
@@ -198,6 +240,7 @@ class MainWindow(QMainWindow):
         assert encoding.decode(encoding.encode(text)) == text
         num_tokens = len(encoding.encode(text))
         return f"Token count: {num_tokens}\tWord count: {len(text.split())},\tCharacter count: {len(text)}"
+    
 
     def submit_text(self):
         try:
@@ -253,7 +296,7 @@ class MainWindow(QMainWindow):
         completion_tokens = response.usage.completion_tokens
         prompt_tokens = response.usage.prompt_tokens
         total_tokens = response.usage.total_tokens
-        token_usage = f"Completion tokens: {completion_tokens}\tPrompt tokens: {prompt_tokens}\tTotal tokens: {total_tokens}"
+        token_usage = f"Completion tokens: {completion_tokens}\tPrompt tokens: {prompt_tokens}\nTotal tokens: {total_tokens}"
 
         print(parsed_info)
         print(response)
@@ -262,14 +305,14 @@ class MainWindow(QMainWindow):
 
         # Append the chat text to the chat text edit
         self.chat.append(
-            f"User: \n\n{input_text}\n\n\nAssistant:\n\n{parsed_info}\n\n\n{token_usage}\tFirst Message: {self.first_message}\n\n\n{'-' * 80}\n"
+            f"User: {input_text}\n\n\t{'-' * 60}\n\nAI: {parsed_info}\n\n\n{token_usage}\tFirst Message: {self.first_message}\n\n\t{'-' * 60}\n\n\n"
         )
-
+        #self.chat.toMarkdown()
         # Clear the input text edit
         self.input_text_edit.clear()
 
         # Log the response
-        self.history.append(f"{response}")
+        self.history.append(f"{response},")
         self.first_message = False
         
 
@@ -278,7 +321,7 @@ if __name__ == "__main__":
 
     main_window = MainWindow()
     main_window.setWindowTitle("ChatGPT")
-    main_window.setGeometry(700, 200, 450, 720)
+    main_window.setGeometry(3200,300, 450, 720)
 
     main_window.show()
 

@@ -34,11 +34,13 @@ PyYAML==6.0
 qmsolve==2.0.0
 regex==2022.10.31
 requests==2.28.2
+scipy==1.10.1
 sentencepiece==0.1.97
 shiboken6==6.4.2
 six==1.16.0
 tiktoken==0.3.2
 tokenizers==0.13.2
+tomli==2.0.1
 tqdm==4.65.0
 transformers==4.27.2
 typing_extensions==4.5.0
