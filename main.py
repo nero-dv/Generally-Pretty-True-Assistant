@@ -6,11 +6,26 @@ import tiktoken
 from numpy import hsplit
 from PySide6.QtCore import Qt, QEvent, QObject
 from PySide6.QtGui import QAction, QFont, QFontDatabase, QShortcut, QKeyEvent
-from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog,
-                               QHBoxLayout, QInputDialog, QLabel, QLineEdit,
-                               QMainWindow, QMenu, QMenuBar, QMessageBox,
-                               QPushButton, QSplitter, QTabWidget, QTextEdit,
-                               QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (
+    QApplication,
+    QComboBox,
+    QFileDialog,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMenu,
+    QMenuBar,
+    QMessageBox,
+    QPushButton,
+    QSplitter,
+    QTabWidget,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
+
 
 class ChatInput(QTextEdit):
     def __init__(self, submit_text, parent=None):
@@ -22,6 +37,8 @@ class ChatInput(QTextEdit):
             self.submit_text()
         else:
             super().keyPressEvent(event)
+
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -36,7 +53,7 @@ class MainWindow(QMainWindow):
         chat_font = QFont(fontdb.applicationFontFamilies(id1))
         console_font = QFont(fontdb.applicationFontFamilies(id2))
         info_font = QFont(fontdb.applicationFontFamilies(id3))
-        
+
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
 
@@ -51,7 +68,7 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.model_dropdown)
 
         splitter = QSplitter(Qt.Vertical)  # type: ignore
-        
+
         self.chat = QTextEdit()
         self.chat.setReadOnly(True)
         response_font = chat_font
@@ -68,8 +85,7 @@ class MainWindow(QMainWindow):
         self.input_text_edit.setFocus()
         self.input_text_edit.textChanged.connect(self.parse_text)  # type: ignore
         self.input_text_edit.setAcceptRichText(False)
-            
-        
+
         splitter.addWidget(self.input_text_edit)
 
         self.parsed_info_label = QLabel(
@@ -86,21 +102,16 @@ class MainWindow(QMainWindow):
         first_tab_layout = QVBoxLayout()
         first_tab_layout.addWidget(splitter)
         splitter.setSizes([300, 100, 20])
-        
-
 
         bottom_layout = QHBoxLayout()
         submit_button = QPushButton("Submit")
         bottom_layout.addWidget(submit_button)
-        
-        
+
         submit_button.clicked.connect(self.submit_text)  # type: ignore
         submit_button.setAutoDefault(True)
         submit_button.setShortcut("Ctrl+Enter")
         submit_button.keyPressEvent = self.submit_text  # type: ignore
-        
 
-        
         first_tab_layout.addLayout(bottom_layout)
         first_tab_widget.setLayout(first_tab_layout)
         tab_widget.addTab(first_tab_widget, self.model_dropdown.currentText())
@@ -122,7 +133,6 @@ class MainWindow(QMainWindow):
 
         main_layout.addWidget(tab_widget)
         central_widget.setLayout(main_layout)
-
 
     def create_menu(self):
         menu_bar = QMenuBar(self)
@@ -240,7 +250,6 @@ class MainWindow(QMainWindow):
         assert encoding.decode(encoding.encode(text)) == text
         num_tokens = len(encoding.encode(text))
         return f"Token count: {num_tokens}\tWord count: {len(text.split())},\tCharacter count: {len(text)}"
-    
 
     def submit_text(self):
         try:
@@ -257,11 +266,13 @@ class MainWindow(QMainWindow):
             response = openai.ChatCompletion.create(
                 model=self.model_dropdown.currentText(),
                 messages=[
-                    {"role": "system", "content": "You are an AI language model that is helpful and friendly. You are continuing a conversation."
+                    {
+                        "role": "system",
+                        "content": "You are an AI language model that is helpful and friendly. You are continuing a conversation.",
                     },
                     {"role": "user", "content": self.input_text_two},
                     {"role": "assistant", "content": self.first_response},
-                    {"role": "user", "content": input_text}
+                    {"role": "user", "content": input_text},
                 ],
                 temperature=0.6,
             )
@@ -307,14 +318,14 @@ class MainWindow(QMainWindow):
         self.chat.append(
             f"User: {input_text}\n\n\t{'-' * 60}\n\nAI: {parsed_info}\n\n\n{token_usage}\tFirst Message: {self.first_message}\n\n\t{'-' * 60}\n\n\n"
         )
-        #self.chat.toMarkdown()
+        # self.chat.toMarkdown()
         # Clear the input text edit
         self.input_text_edit.clear()
 
         # Log the response
         self.history.append(f"{response},")
         self.first_message = False
-        
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
