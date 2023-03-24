@@ -1,0 +1,3 @@
+# Generally-Pretty-True-Assistant
+
+This Python program uses the OpenAI API to create a chat window that can be customized to meet the user's needs. It includes features such as saving chat history, viewing raw outputs from the API, and setting an API key. The program is designed to be user-friendly and helpful, allowing users to easily interact with the OpenAI API and receive responses in real-time. Overall, this program is a useful tool for anyone looking to leverage the power of the OpenAI API for their projects.
