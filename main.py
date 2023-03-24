@@ -321,7 +321,7 @@ if __name__ == "__main__":
 
     main_window = MainWindow()
     main_window.setWindowTitle("ChatGPT")
-    main_window.setGeometry(3200,300, 450, 720)
+    main_window.setGeometry(400, 100, 600, 1200)
 
     main_window.show()
 
