@@ -320,7 +320,7 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
 
     main_window = MainWindow()
-    main_window.setWindowTitle("ChatGPT")
+    main_window.setWindowTitle("OpenAI API - GPT3.5-Turbo")
     main_window.setGeometry(400, 100, 600, 1200)
 
     main_window.show()
