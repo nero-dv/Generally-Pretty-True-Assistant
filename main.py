@@ -5,7 +5,7 @@ import openai
 import tiktoken
 from numpy import hsplit
 from PySide6.QtCore import Qt, QEvent, QObject
-from PySide6.QtGui import QAction, QFont, QFontDatabase, QShortcut, QKeyEvent
+from PySide6.QtGui import QAction, QFont, QFontDatabase, QShortcut, QKeyEvent, QIcon
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -27,16 +27,30 @@ from PySide6.QtWidgets import (
 )
 
 
+
+
 class ChatInput(QTextEdit):
     def __init__(self, submit_text, parent=None):
         super().__init__(parent)
         self.submit_text = submit_text
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Return and not event.modifiers() & Qt.ShiftModifier:
+        if event.key() == Qt.Key_Return and not event.modifiers() & Qt.ShiftModifier: # type: ignore
             self.submit_text()
         else:
             super().keyPressEvent(event)
+
+class AuthenticationError(openai.error.AuthenticationError()):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        print("Invalid API key. Please set one in the menu.")
+        error_box = QMessageBox()
+        error_box.setIcon(QMessageBox.Critical)
+        error_box.setText("Invalid API key. Please set one in the menu.")
+        error_box.setWindowTitle("Invalid API key")
+        error_box.setStandardButtons(QMessageBox.Ok)
+        error_box.exec()
+        return
 
 
 class MainWindow(QMainWindow):
@@ -44,6 +58,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.first_message = True
         self.init_ui()
+        self.setWindowIcon(QIcon('img/icon.ico'))
 
     def init_ui(self):
         fontdb = QFontDatabase()
@@ -105,12 +120,21 @@ class MainWindow(QMainWindow):
 
         bottom_layout = QHBoxLayout()
         submit_button = QPushButton("Submit")
+        plus_button = QPushButton("+")
+        minus_button = QPushButton("-")
+        
         bottom_layout.addWidget(submit_button)
+        bottom_layout.addWidget(plus_button)
+        bottom_layout.addWidget(minus_button)
+        
 
         submit_button.clicked.connect(self.submit_text)  # type: ignore
         submit_button.setAutoDefault(True)
         submit_button.setShortcut("Ctrl+Enter")
         submit_button.keyPressEvent = self.submit_text  # type: ignore
+        
+        plus_button.clicked.connect(self.increase_font_size)
+        minus_button.clicked.connect(self.decrease_font_size)
 
         first_tab_layout.addLayout(bottom_layout)
         first_tab_widget.setLayout(first_tab_layout)
@@ -133,11 +157,29 @@ class MainWindow(QMainWindow):
 
         main_layout.addWidget(tab_widget)
         central_widget.setLayout(main_layout)
+    
+
+    def increase_font_size(self):
+        # Get the current font size and increase it by 1
+        current_size = self.chat.fontPointSize()
+        new_size = current_size + 1
+        # Set the new font size for the QTextEdit widget
+        font = self.chat.currentFont()
+        font.setPointSize(new_size)
+        self.chat.setCurrentFont(font)
+        
+    def decrease_font_size(self):
+        # Get the current font size and decrease it by 1
+        current_size = self.chat.fontPointSize()
+        new_size = current_size - 1
+        # Set the new font size for the QTextEdit widget
+        font = self.chat.currentFont()
+        font.setPointSize(new_size)
+        self.chat.setCurrentFont(font)
 
     def create_menu(self):
         menu_bar = QMenuBar(self)
         self.setMenuBar(menu_bar)
-
         # Menu one
         file_menu = QMenu("&File", self)
         menu_bar.addMenu(file_menu)
@@ -177,7 +219,7 @@ class MainWindow(QMainWindow):
             edit_menu, "&Select All", "Ctrl+A", self.select_all_text
         )
         self.clear_chat_action = add_menu_action(
-            edit_menu, "&Clear Chat", "Ctrl+L", self.clear_chat
+            edit_menu, "&Clear Chat", "Ctrl+W", self.clear_chat
         )
 
     def save_chat(self):
@@ -243,6 +285,16 @@ class MainWindow(QMainWindow):
         #     self.submit_text()
         parsed_info = self.parse_information(input_text)
         self.parsed_info_label.setText(parsed_info)
+    
+    def AuthenticationError(self):
+        print("Invalid API key. Please set one in the menu.")
+        error_box = QMessageBox()
+        error_box.setIcon(QMessageBox.Critical)
+        error_box.setText("Invalid API key. Please set one in the menu.")
+        error_box.setWindowTitle("Invalid API key")
+        error_box.setStandardButtons(QMessageBox.Ok)
+        error_box.exec()
+        return
 
     @staticmethod
     def parse_information(text, model="cl100k_base"):
@@ -291,14 +343,9 @@ class MainWindow(QMainWindow):
                     temperature=0.6,
                 )
             except openai.error.AuthenticationError:
-                print("Invalid API key. Please set one in the menu.")
-                error_box = QMessageBox()
-                error_box.setIcon(QMessageBox.Critical)
-                error_box.setText("Invalid API key. Please set one in the menu.")
-                error_box.setWindowTitle("Invalid API key")
-                error_box.setStandardButtons(QMessageBox.Ok)
-                error_box.exec()
-                return
+                self.AuthenticationError()
+            except Exception() as e:
+                print(e)
 
         # Get the parsed information from the API response
         parsed_info = response.choices[0].message.content
