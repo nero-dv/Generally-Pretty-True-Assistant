@@ -86,6 +86,17 @@ class MainWindow(QMainWindow):
         self.chat.setFont(self.response_font)
         self.chat.setPlaceholderText("Your assistant's response will appear here")
         self.splitter.addWidget(self.chat)
+        
+        self.size_button_widget = QWidget()
+        self.size_button_layout = QHBoxLayout()
+        self.minus_button = QPushButton("-")
+        self.plus_button = QPushButton("+")
+        self.plus_button.clicked.connect(self.increase_font_size)
+        self.minus_button.clicked.connect(self.decrease_font_size)
+        self.size_button_layout.addWidget(self.minus_button)
+        self.size_button_layout.addWidget(self.plus_button)
+        self.size_button_widget.setLayout(self.size_button_layout)
+        self.splitter.addWidget(self.size_button_widget)
 
         self.input_text_edit = ChatInput(self.submit_text, 2)
         self.input_text_edit.setFont(self.input_text_font)
@@ -93,6 +104,7 @@ class MainWindow(QMainWindow):
         self.input_text_edit.textChanged.connect(self.parse_text)  # type: ignore
         self.input_text_edit.setAcceptRichText(False)
         self.splitter.addWidget(self.input_text_edit)
+
 
         self.parsed_info_label = QLabel(
             f"Token count: 0\tWord count: 0,\tCharacter count: 0\n(Token Counts are estimated with Tiktoken and don't include special tokens or tokens added by the model and its response)"
@@ -105,24 +117,16 @@ class MainWindow(QMainWindow):
         self.first_tab_widget = QWidget()
         self.first_tab_layout = QVBoxLayout()
         self.first_tab_layout.addWidget(self.splitter)
-        self.splitter.setSizes([400, 20, 20])
+        self.splitter.setSizes([570, 5, 200, 60, 50])
 
         self.bottom_layout = QHBoxLayout()
         self.submit_button = QPushButton("Submit")
-        self.plus_button = QPushButton("+")
-        self.minus_button = QPushButton("-")
-
         self.bottom_layout.addWidget(self.submit_button)
-        self.bottom_layout.addWidget(self.plus_button)
-        self.bottom_layout.addWidget(self.minus_button)
 
         self.submit_button.clicked.connect(self.submit_text)  # type: ignore
         self.submit_button.setAutoDefault(True)
         self.submit_button.setShortcut("Ctrl+Enter")
         self.submit_button.keyPressEvent = self.submit_text  # type: ignore
-
-        self.plus_button.clicked.connect(self.increase_font_size)
-        self.minus_button.clicked.connect(self.decrease_font_size)
 
         self.first_tab_layout.addLayout(self.bottom_layout)
         self.first_tab_widget.setLayout(self.first_tab_layout)
@@ -316,7 +320,7 @@ if __name__ == "__main__":
 
     main_window = MainWindow()
     main_window.setWindowTitle("OpenAI API - GPT3.5-Turbo")
-    main_window.setGeometry(400, 100, 600, 1200)
+    main_window.setGeometry(400, 100, 600, 900)
 
     main_window.show()
 
