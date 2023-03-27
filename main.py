@@ -99,7 +99,7 @@ class MainWindow(QMainWindow):
         self.size_button_widget.setLayout(self.size_button_layout)
         self.splitter.addWidget(self.size_button_widget)
 
-        self.input_text_edit = ChatInput(self.submit_text, 2)
+        self.input_text_edit = ChatInput(self.submit_text)
         self.input_text_edit.setFont(self.input_text_font)
         self.input_text_edit.setPlaceholderText("Enter your text here")
         self.input_text_edit.textChanged.connect(self.parse_text)  # type: ignore
