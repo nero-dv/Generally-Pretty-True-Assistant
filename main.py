@@ -1,143 +1,173 @@
-import os
 import sys
 
-import openai
 import tiktoken
-from numpy import hsplit
-from PySide6.QtCore import Qt, QEvent, QObject
-from PySide6.QtGui import QAction, QFont, QFontDatabase, QShortcut, QKeyEvent
-from PySide6.QtWidgets import (
-    QApplication,
-    QComboBox,
-    QFileDialog,
-    QHBoxLayout,
-    QInputDialog,
-    QLabel,
-    QLineEdit,
-    QMainWindow,
-    QMenu,
-    QMenuBar,
-    QMessageBox,
-    QPushButton,
-    QSplitter,
-    QTabWidget,
-    QTextEdit,
-    QVBoxLayout,
-    QWidget,
-)
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction, QFont, QFontDatabase, QIcon
+from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog,
+                               QHBoxLayout, QInputDialog, QLabel, QLineEdit,
+                               QMainWindow, QMenu, QMenuBar, QPushButton,
+                               QSplitter, QTabWidget, QTextEdit, QVBoxLayout,
+                               QWidget)
 
-
-class ChatInput(QTextEdit):
-    def __init__(self, submit_text, parent=None):
-        super().__init__(parent)
-        self.submit_text = submit_text
-
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key_Return and not event.modifiers() & Qt.ShiftModifier:
-            self.submit_text()
-        else:
-            super().keyPressEvent(event)
+from InterfaceUtility import ChatInput, ChatModel
 
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.first_message = True
+        self.input_text_list = []
+        self.assistant_response = []
         self.init_ui()
+        self.setWindowIcon(QIcon("img/icon.ico"))
 
     def init_ui(self):
         fontdb = QFontDatabase()
-        id1 = fontdb.addApplicationFont("./fonts/Raleway-Regular.ttf")
-        id2 = fontdb.addApplicationFont("./fonts/ShareTechMono-Regular.ttf")
-        id3 = fontdb.addApplicationFont("./fonts/Figtree-Regular.ttf")
-        chat_font = QFont(fontdb.applicationFontFamilies(id1))
-        console_font = QFont(fontdb.applicationFontFamilies(id2))
-        info_font = QFont(fontdb.applicationFontFamilies(id3))
+        chat_font, console_font, info_font = (
+            QFont(
+                fontdb.applicationFontFamilies(
+                    fontdb.addApplicationFont("./fonts/Raleway-Regular.ttf")
+                )
+            ),
+            QFont(
+                fontdb.applicationFontFamilies(
+                    fontdb.addApplicationFont("./fonts/ShareTechMono-Regular.ttf")
+                )
+            ),
+            QFont(
+                fontdb.applicationFontFamilies(
+                    fontdb.addApplicationFont("./fonts/Figtree-Regular.ttf")
+                )
+            ),
+        )
 
-        central_widget = QWidget()
-        self.setCentralWidget(central_widget)
+        self.response_font = chat_font
+        self.response_font.setPointSize(11)
 
-        main_layout = QVBoxLayout()
+        self.input_text_font = chat_font
+        self.input_text_font.setPointSize(11)
 
+        self.history_font = console_font
+        self.history_font.setPointSize(11)
+
+        self.pil_font = info_font
+        self.pil_font.setPointSize(9)
+
+        self.central_widget = QWidget()
+        self.setCentralWidget(self.central_widget)
+        self.main_layout = QVBoxLayout()
+        
         self.create_menu()
 
         self.model_dropdown = QComboBox()
         self.model_dropdown.addItems(["gpt-3.5-turbo"])
         self.model_dropdown.setEnabled(False)
         self.current_model = self.model_dropdown.currentText()
-        main_layout.addWidget(self.model_dropdown)
+        self.main_layout.addWidget(self.model_dropdown)
+        
+        self.context_label = QLabel("Number of messages to keep in context: ")
+        self.context_label.setToolTip("The number of messages to keep in context for the AI. \nThe more messages, the more context the AI has to work with, but the longer it takes to generate a response. \nThe default is 2 and is recommended for most use cases. Choice is reflected after pressing submit and is not retroactive.")
+        self.context_label.toolTip
+        self.context_label.setFont(self.pil_font)
+        self.context_label.setAlignment(Qt.AlignRight)
+        self.main_layout.addWidget(self.context_label)
+        
+        self.context_choice = QComboBox()
+        for i in range(0, 11):
+            self.context_choice.addItem(str(i))
+        self.context_choice.setCurrentIndex(2)
+        self.context_choice.setToolTip(self.context_label.toolTip())
+        self.main_layout.addWidget(self.context_choice)
 
-        splitter = QSplitter(Qt.Vertical)  # type: ignore
+        self.splitter = QSplitter(Qt.Vertical)  # type: ignore
 
         self.chat = QTextEdit()
         self.chat.setReadOnly(True)
-        response_font = chat_font
-        response_font.setPointSize(11)
-        self.chat.setFont(response_font)
+        self.chat.setDocument
+        self.chat.setFont(self.response_font)
         self.chat.setPlaceholderText("Your assistant's response will appear here")
-        splitter.addWidget(self.chat)
+        self.splitter.addWidget(self.chat)
 
-        self.input_text_edit = ChatInput(self.submit_text)
-        input_text_font = chat_font
-        input_text_font.setPointSize(11)
-        self.input_text_edit.setFont(input_text_font)
+        self.input_text_edit = ChatInput(self.submit_text, 2)
+        self.input_text_edit.setFont(self.input_text_font)
         self.input_text_edit.setPlaceholderText("Enter your text here")
-        self.input_text_edit.setFocus()
         self.input_text_edit.textChanged.connect(self.parse_text)  # type: ignore
         self.input_text_edit.setAcceptRichText(False)
-
-        splitter.addWidget(self.input_text_edit)
+        self.splitter.addWidget(self.input_text_edit)
 
         self.parsed_info_label = QLabel(
             f"Token count: 0\tWord count: 0,\tCharacter count: 0\n(Token Counts are estimated with Tiktoken and don't include special tokens or tokens added by the model and its response)"
         )
         self.parsed_info_label.setWordWrap(True)
-        pil_font = info_font
-        pil_font.setPointSize(9)
-        self.parsed_info_label.setFont(pil_font)
-        splitter.addWidget(self.parsed_info_label)
+        self.parsed_info_label.setFont(self.pil_font)
+        self.splitter.addWidget(self.parsed_info_label)
 
-        tab_widget = QTabWidget()
-        first_tab_widget = QWidget()
-        first_tab_layout = QVBoxLayout()
-        first_tab_layout.addWidget(splitter)
-        splitter.setSizes([300, 100, 20])
+        self.tab_widget = QTabWidget()
+        self.first_tab_widget = QWidget()
+        self.first_tab_layout = QVBoxLayout()
+        self.first_tab_layout.addWidget(self.splitter)
+        self.splitter.setSizes([400, 20, 20])
 
-        bottom_layout = QHBoxLayout()
-        submit_button = QPushButton("Submit")
-        bottom_layout.addWidget(submit_button)
+        self.bottom_layout = QHBoxLayout()
+        self.submit_button = QPushButton("Submit")
+        self.plus_button = QPushButton("+")
+        self.minus_button = QPushButton("-")
 
-        submit_button.clicked.connect(self.submit_text)  # type: ignore
-        submit_button.setAutoDefault(True)
-        submit_button.setShortcut("Ctrl+Enter")
-        submit_button.keyPressEvent = self.submit_text  # type: ignore
+        self.bottom_layout.addWidget(self.submit_button)
+        self.bottom_layout.addWidget(self.plus_button)
+        self.bottom_layout.addWidget(self.minus_button)
 
-        first_tab_layout.addLayout(bottom_layout)
-        first_tab_widget.setLayout(first_tab_layout)
-        tab_widget.addTab(first_tab_widget, self.model_dropdown.currentText())
+        self.submit_button.clicked.connect(self.submit_text)  # type: ignore
+        self.submit_button.setAutoDefault(True)
+        self.submit_button.setShortcut("Ctrl+Enter")
+        self.submit_button.keyPressEvent = self.submit_text  # type: ignore
+
+        self.plus_button.clicked.connect(self.increase_font_size)
+        self.minus_button.clicked.connect(self.decrease_font_size)
+
+        self.first_tab_layout.addLayout(self.bottom_layout)
+        self.first_tab_widget.setLayout(self.first_tab_layout)
+        self.tab_widget.addTab(self.first_tab_widget, self.model_dropdown.currentText())
 
         self.history = QTextEdit()
-        history_font = console_font
-        self.history.setFont(history_font)
-        history_font.setPointSize(11)
+
+        self.history.setFont(self.history_font)
         self.history.setReadOnly(True)
         self.history.setPlaceholderText(
             "Your assistant's raw responses will appear here"
         )
 
-        second_tab_widget = QWidget()
-        second_tab_layout = QVBoxLayout()
-        second_tab_layout.addWidget(self.history)
-        second_tab_widget.setLayout(second_tab_layout)
-        tab_widget.addTab(second_tab_widget, "Raw History")
+        self.second_tab_widget = QWidget()
+        self.second_tab_layout = QVBoxLayout()
+        self.second_tab_layout.addWidget(self.history)
+        self.second_tab_widget.setLayout(self.second_tab_layout)
+        self.tab_widget.addTab(self.second_tab_widget, "Raw History")
 
-        main_layout.addWidget(tab_widget)
-        central_widget.setLayout(main_layout)
+        self.main_layout.addWidget(self.tab_widget)
+        self.central_widget.setLayout(self.main_layout)
+
+    def increase_font_size(self):
+        # Get the current font size and increase it by 1
+        current_size = self.chat.fontPointSize()
+        self.chat.selectAll()
+        new_size = current_size + 1
+        # Set the new font size for the QTextEdit widget
+        font = self.chat.currentFont()
+        font.setPointSize(new_size)
+        self.chat.setCurrentFont(font)
+
+    def decrease_font_size(self):
+        # Get the current font size and decrease it by 1
+        current_size = self.chat.fontPointSize()
+        self.chat.selectAll()
+        new_size = current_size - 1 if current_size >= 1 else 1
+        # Set the new font size for the QTextEdit widget
+        font = self.chat.currentFont()
+        font.setPointSize(new_size)
+        self.chat.setCurrentFont(font)
 
     def create_menu(self):
         menu_bar = QMenuBar(self)
         self.setMenuBar(menu_bar)
-
         # Menu one
         file_menu = QMenu("&File", self)
         menu_bar.addMenu(file_menu)
@@ -177,17 +207,17 @@ class MainWindow(QMainWindow):
             edit_menu, "&Select All", "Ctrl+A", self.select_all_text
         )
         self.clear_chat_action = add_menu_action(
-            edit_menu, "&Clear Chat", "Ctrl+L", self.clear_chat
+            edit_menu, "&Clear Chat", "Ctrl+W", self.clear_chat
         )
 
     def save_chat(self):
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "Save Chat", "", "Text Files (*.txt);;All Files (*)"
+            self, "Save Chat", "", "MD Files (*.MD);;All Files (*)"
         )
 
         if file_path:
             with open(file_path, "w") as file:
-                file.write(self.chat.toPlainText())
+                file.write(self.chat.toMarkdown())
 
     def export_history(self):
         file_path, _ = QFileDialog.getSaveFileName(
@@ -239,8 +269,6 @@ class MainWindow(QMainWindow):
 
     def parse_text(self):
         input_text = self.input_text_edit.toPlainText()
-        # if input_text.endswith("\n"):
-        #     self.submit_text()
         parsed_info = self.parse_information(input_text)
         self.parsed_info_label.setText(parsed_info)
 
@@ -250,81 +278,37 @@ class MainWindow(QMainWindow):
         assert encoding.decode(encoding.encode(text)) == text
         num_tokens = len(encoding.encode(text))
         return f"Token count: {num_tokens}\tWord count: {len(text.split())},\tCharacter count: {len(text)}"
-
+    
     def submit_text(self):
-        try:
-            if os.environ.get("OPENAI_API_KEY"):
-                OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-            else:
-                OPENAI_API_KEY = self.read_api_key()
-        except:
-            print("No API key found. Please set one in the menu.")
+        self.input_text_list.append(self.input_text_edit.toPlainText())
+        self.num_contexts = self.context_choice.currentIndex() + 1
+        response = ChatModel().submit_text(
+            self.input_text_list[-1 * self.num_contexts :],
+            self.assistant_response[-1 * (self.num_contexts - 1) :],
+        )
+        self.assistant_response.append(response.choices[0].message.content)
+        token_usage = self.token_count(response)
+        self.parse_response(response, token_usage)
+        self.history.append(f"{response},")
+        self.input_text_edit.clear()
 
-        openai.api_key = OPENAI_API_KEY
-        input_text = self.input_text_edit.toPlainText()
-        if self.first_message == False:
-            response = openai.ChatCompletion.create(
-                model=self.model_dropdown.currentText(),
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are an AI language model that is helpful and friendly. You are continuing a conversation.",
-                    },
-                    {"role": "user", "content": self.input_text_two},
-                    {"role": "assistant", "content": self.first_response},
-                    {"role": "user", "content": input_text},
-                ],
-                temperature=0.6,
-            )
-        else:
-            try:
-                response = openai.ChatCompletion.create(
-                    # model="chatgpt-3.5-turbo",
-                    model=self.model_dropdown.currentText(),
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You are an AI language model that is helpful and friendly.",
-                        },
-                        {"role": "user", "content": input_text},
-                    ],
-                    temperature=0.6,
-                )
-            except openai.error.AuthenticationError:
-                print("Invalid API key. Please set one in the menu.")
-                error_box = QMessageBox()
-                error_box.setIcon(QMessageBox.Critical)
-                error_box.setText("Invalid API key. Please set one in the menu.")
-                error_box.setWindowTitle("Invalid API key")
-                error_box.setStandardButtons(QMessageBox.Ok)
-                error_box.exec()
-                return
+    def parse_response(self, response, token_usage):
+        print(self.input_text_list[-1])
+        print(self.assistant_response[-1])
+        self.chat.append(f"{self.input_text_list[-1]}")
+        self.chat.append("\n\t" + "-" * 60 + "\n")
+        self.chat.append(f"{self.assistant_response[-1]}")
+        self.chat.append("\n")
+        self.chat.append(token_usage)
+        self.chat.append("\n\n")
 
-        # Get the parsed information from the API response
-        parsed_info = response.choices[0].message.content
-
+    def token_count(self, response):
         # Get usage information from the API response
         completion_tokens = response.usage.completion_tokens
         prompt_tokens = response.usage.prompt_tokens
         total_tokens = response.usage.total_tokens
-        token_usage = f"Completion tokens: {completion_tokens}\tPrompt tokens: {prompt_tokens}\nTotal tokens: {total_tokens}"
-
-        print(parsed_info)
-        print(response)
-        self.input_text_two = input_text
-        self.first_response = parsed_info
-
-        # Append the chat text to the chat text edit
-        self.chat.append(
-            f"User: {input_text}\n\n\t{'-' * 60}\n\nAI: {parsed_info}\n\n\n{token_usage}\tFirst Message: {self.first_message}\n\n\t{'-' * 60}\n\n\n"
-        )
-        # self.chat.toMarkdown()
-        # Clear the input text edit
-        self.input_text_edit.clear()
-
-        # Log the response
-        self.history.append(f"{response},")
-        self.first_message = False
+        token_usage = f"Completion tokens: {completion_tokens}\tPrompt tokens: {prompt_tokens}\nTotal tokens: {total_tokens}\n"
+        return token_usage
 
 
 if __name__ == "__main__":
