@@ -4,3 +4,6 @@ fonts/*
 .vscode/*
 fonts.py
 temp.py
+__pycache__/InterfaceUtility.cpython-311.pyc
+memos.json
+extensions/*
