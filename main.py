@@ -2,7 +2,7 @@ import sys
 
 import tiktoken
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QFont, QFontDatabase, QIcon
+from PySide6.QtGui import QAction, QFont, QFontDatabase, QIcon, QTextCursor
 from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog,
                                QHBoxLayout, QInputDialog, QLabel, QLineEdit,
                                QMainWindow, QMenu, QMenuBar, QPushButton,
@@ -84,6 +84,7 @@ class MainWindow(QMainWindow):
         self.chat.setReadOnly(True)
         self.chat.setDocument
         self.chat.setFont(self.response_font)
+        self.chat.setFontPointSize(11)
         self.chat.setPlaceholderText("Your assistant's response will appear here")
         self.splitter.addWidget(self.chat)
         
@@ -152,22 +153,29 @@ class MainWindow(QMainWindow):
     def increase_font_size(self):
         # Get the current font size and increase it by 1
         current_size = self.chat.fontPointSize()
+        self.chat.setVisible(False)
         self.chat.selectAll()
         new_size = current_size + 1
         # Set the new font size for the QTextEdit widget
         font = self.chat.currentFont()
         font.setPointSize(new_size)
         self.chat.setCurrentFont(font)
+        self.chat.moveCursor(QTextCursor.End)
+        self.chat.setVisible(True)
 
     def decrease_font_size(self):
         # Get the current font size and decrease it by 1
         current_size = self.chat.fontPointSize()
+        self.chat.setVisible(False)
         self.chat.selectAll()
         new_size = current_size - 1 if current_size >= 1 else 1
         # Set the new font size for the QTextEdit widget
         font = self.chat.currentFont()
         font.setPointSize(new_size)
         self.chat.setCurrentFont(font)
+        self.chat.setCurrentFont(font)
+        self.chat.moveCursor(QTextCursor.End)
+        self.chat.setVisible(True)
 
     def create_menu(self):
         menu_bar = QMenuBar(self)
@@ -302,9 +310,10 @@ class MainWindow(QMainWindow):
         self.chat.append(f"{self.input_text_list[-1]}")
         self.chat.append("\n\t" + "-" * 60 + "\n")
         self.chat.append(f"{self.assistant_response[-1]}")
+        self.chat.moveCursor(QTextCursor.End)
         self.chat.append("\n")
         self.chat.append(token_usage)
-        self.chat.append("\n\n")
+        self.chat.append("\t" + "-" * 60 + "\n")
 
     def token_count(self, response):
         # Get usage information from the API response
