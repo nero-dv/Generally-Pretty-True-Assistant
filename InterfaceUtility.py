@@ -4,7 +4,6 @@ from PySide6.QtCore import QObject, Qt
 from PySide6.QtWidgets import QMessageBox, QTextEdit
 
 
-
 class ChatInput(QTextEdit):
     def __init__(self, submit_text: str, context_count: int, parent=None):
         super().__init__(parent)
@@ -13,7 +12,7 @@ class ChatInput(QTextEdit):
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_Return and not event.modifiers() & Qt.ShiftModifier:  # type: ignore
-            self.submit_text(self.context_count)
+            self.submit_text()
         else:
             super().keyPressEvent(event)
 
