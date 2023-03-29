@@ -1,7 +1,8 @@
 import os
 import openai
-from PySide6.QtCore import QObject, Qt
-from PySide6.QtWidgets import QMessageBox, QTextEdit
+from PySide6.QtCore import QObject, Qt, QEvent
+from PySide6.QtWidgets import QMessageBox, QTextEdit, QApplication
+from PySide6.QtGui import QKeySequence, QClipboard, QKeyEvent
 
 
 class ChatInput(QTextEdit):
@@ -14,8 +15,8 @@ class ChatInput(QTextEdit):
             self.submit_text()
         else:
             super().keyPressEvent(event)
-
-
+            
+            
 class ChatModel(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -25,7 +26,7 @@ class ChatModel(QObject):
         messages = [
             {
                 "role": "system",
-                "content": "You are an AI language model that is helpful and friendly.",
+                "content": "You help me learn how to write code.",
             }
         ]
         for i in range(num_inputs):
@@ -47,9 +48,8 @@ class ChatModel(QObject):
             response = openai.ChatCompletion.create(
                 model=model,
                 messages=self.message_context(input_text, assistant_response),
-                temperature=0.6,
+                temperature=.6,
             )
-            return response
         except openai.error.AuthenticationError:
             print("Invalid API key. Please set one in the menu.")
             error_box = QMessageBox()
@@ -59,3 +59,7 @@ class ChatModel(QObject):
             error_box.setStandardButtons(QMessageBox.Ok)
             error_box.exec()
             return
+        except Exception as e:
+            return f'Request failed: {e}'
+        return response
+    

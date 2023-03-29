@@ -1,4 +1,5 @@
 import sys
+import json
 
 import tiktoken
 from PySide6.QtCore import Qt
@@ -55,7 +56,7 @@ class MainWindow(QMainWindow):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         self.main_layout = QVBoxLayout()
-        
+
         self.create_menu()
 
         self.model_dropdown = QComboBox()
@@ -63,14 +64,16 @@ class MainWindow(QMainWindow):
         self.model_dropdown.setEnabled(False)
         self.current_model = self.model_dropdown.currentText()
         self.main_layout.addWidget(self.model_dropdown)
-        
+
         self.context_label = QLabel("Number of messages to keep in context: ")
-        self.context_label.setToolTip("The number of messages to keep in context for the AI. \nThe more messages, the more context the AI has to work with, but the longer it takes to generate a response. \nThe default is 2 and is recommended for most use cases. Choice is reflected after pressing submit and is not retroactive.")
+        self.context_label.setToolTip(
+            "The number of messages to keep in context for the AI. \nThe more messages, the more context the AI has to work with, but the longer it takes to generate a response. \nThe default is 2 and is recommended for most use cases. Choice is reflected after pressing submit and is not retroactive."
+        )
         self.context_label.toolTip
         self.context_label.setFont(self.pil_font)
         self.context_label.setAlignment(Qt.AlignRight)
         self.main_layout.addWidget(self.context_label)
-        
+
         self.context_choice = QComboBox()
         for i in range(0, 11):
             self.context_choice.addItem(str(i))
@@ -81,17 +84,21 @@ class MainWindow(QMainWindow):
         self.splitter = QSplitter(Qt.Vertical)  # type: ignore
 
         self.chat = QTextEdit()
-        self.chat.setReadOnly(True)
-        self.chat.setDocument
         self.chat.setFont(self.response_font)
         self.chat.setFontPointSize(11)
         self.chat.setPlaceholderText("Your assistant's response will appear here")
+        self.chat.setAcceptRichText(True)
+        self.chat.setReadOnly(True)
+        self.chat.toMarkdown()
         self.splitter.addWidget(self.chat)
-        
+
         self.size_button_widget = QWidget()
         self.size_button_layout = QHBoxLayout()
+        self.size_button_layout.setAlignment(Qt.AlignRight)
         self.minus_button = QPushButton("-")
+        self.minus_button.setFixedWidth(30)
         self.plus_button = QPushButton("+")
+        self.plus_button.setFixedWidth(30)
         self.plus_button.clicked.connect(self.increase_font_size)
         self.minus_button.clicked.connect(self.decrease_font_size)
         self.size_button_layout.addWidget(self.minus_button)
@@ -106,9 +113,8 @@ class MainWindow(QMainWindow):
         self.input_text_edit.setAcceptRichText(False)
         self.splitter.addWidget(self.input_text_edit)
 
-
         self.parsed_info_label = QLabel(
-            f"Token count: 0\tWord count: 0,\tCharacter count: 0\n(Token Counts are estimated with Tiktoken and don't include special tokens or tokens added by the model and its response)"
+            f"Token Counts are estimated with Tiktoken and don't include special tokens or tokens added by the model and its response"
         )
         self.parsed_info_label.setWordWrap(True)
         self.parsed_info_label.setFont(self.pil_font)
@@ -118,7 +124,7 @@ class MainWindow(QMainWindow):
         self.first_tab_widget = QWidget()
         self.first_tab_layout = QVBoxLayout()
         self.first_tab_layout.addWidget(self.splitter)
-        self.splitter.setSizes([570, 5, 200, 60, 50])
+        self.splitter.setSizes([600, 10, 210, 80])
 
         self.bottom_layout = QHBoxLayout()
         self.submit_button = QPushButton("Submit")
@@ -233,7 +239,7 @@ class MainWindow(QMainWindow):
 
     def export_history(self):
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "Export Raw History", "", "Text Files (*.txt);;All Files (*)"
+            self, "Export Raw History", "", "JSON Files (*.json);;All Files (*)"
         )
         if file_path:
             with open(file_path, "w") as file:
@@ -277,6 +283,9 @@ class MainWindow(QMainWindow):
         self.input_text_edit.selectAll()
 
     def clear_chat(self):
+        self.input_text_list = []
+        self.assistant_response = []
+        self.history.clear()
         self.chat.clear()
 
     def parse_text(self):
@@ -301,7 +310,7 @@ class MainWindow(QMainWindow):
         self.assistant_response.append(response.choices[0].message.content)
         token_usage = self.token_count(response)
         self.parse_response(response, token_usage)
-        self.history.append(f"{response},")
+        self.history.append(json.dumps(response, indent=4))
         self.input_text_edit.clear()
 
     def parse_response(self, response, token_usage):
@@ -314,6 +323,7 @@ class MainWindow(QMainWindow):
         self.chat.append("\n")
         self.chat.append(token_usage)
         self.chat.append("\t" + "-" * 60 + "\n")
+        self.chat.toMarkdown()
 
     def token_count(self, response):
         # Get usage information from the API response
@@ -326,6 +336,35 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    color_scheme = {
+        "primary": "#95a5a6",
+        "secondary": "#1c1c24",
+        "success": "#28a745",
+        "danger": "#dc3545",
+        "warning": "#ffc107",
+        "info": "#869495",
+        "light": "#f8f9fa",
+        "dark": "#343a40",
+    }
+    style_sheet = (
+        """
+    QPushButton {
+        background-color: %(primary)s;
+        color: white;
+        border: 1px solid %(primary)s;
+        padding: 1px;
+        border-radius: 10px;
+    }
+    QPushButton:hover {
+        background-color: %(info)s;
+    }
+    QPushButton:pressed {
+        background-color: %(secondary)s;
+    }
+    """
+        % color_scheme
+    )
+    app.setStyleSheet(style_sheet)
 
     main_window = MainWindow()
     main_window.setWindowTitle("OpenAI API - GPT3.5-Turbo")

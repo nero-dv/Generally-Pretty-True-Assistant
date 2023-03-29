@@ -9,3 +9,4 @@ memos.json
 extensions/*
 extensions/package.json
 .gitignore
+__pycache__/*
