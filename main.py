@@ -206,9 +206,6 @@ class MainWindow(QMainWindow):
         self.export_history_action = add_menu_action(
             file_menu, "&Export History", "Ctrl+E", self.export_history
         )
-        # self.set_api_action = add_menu_action(
-        #     file_menu, "&Set API Key", "Ctrl+K", self.set_api_key
-        # )
         self.api_key_option = add_menu_action(
             file_menu, "&API Key Manager", "Ctrl+M", self.api_key_manager
         )
@@ -248,27 +245,6 @@ class MainWindow(QMainWindow):
         if file_path:
             with open(file_path, "w") as file:
                 file.write(self.history.toPlainText())
-
-    # def set_api_key(self):
-    #     # Use a dialog to get the API key
-    #     api_key, ok = QInputDialog.getText(
-    #         self, "QInputDialog.getText()", "API Key:", QLineEdit.Normal  # type: ignore
-    #     )
-
-
-    # def save_api_key(self, api_key):
-    #     with open("api_key.aik", "w") as file:
-    #         file.write(api_key)
-    #         self.OPENAI_API_KEY = api_key
-    #     return api_key, self.OPENAI_API_KEY
-
-    # def read_api_key(self):
-    #     try:
-    #         with open("api_key.aik", "r") as file:
-    #             return file.read()
-    #     except FileNotFoundError:
-    #         # Use a dialog to get the API key
-    #         self.set_api_key()
 
     def api_key_manager(self):
         get_key = ApiWindow(self).key

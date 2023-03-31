@@ -49,13 +49,7 @@ class ChatModel(QObject):
             error_box.setStandardButtons(QMessageBox.Ok)
             error_box.exec()
             return
-        #     # if os.environ.get("OPENAI_API_KEY"):
-        #     #     #OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-        #     #     print("API key found in environment variable OPENAI_API_KEY")
-        #     print("No API key found. Please set one in the menu.")
-
-        #     #print(OPENAI_API_KEY)
-            
+        
         openai.api_key = OPENAI_API_KEY
         try:
             response = openai.ChatCompletion.create(
@@ -141,7 +135,6 @@ class ApiWindow(QDialog):
     def handle_accept(self, event=None):
         if self.validate_input():
             try:
-                #print(self.get_selected_key())
                 self.key = self.get_selected_key()
                 self.key = str(self.key)
                 self.done(QDialog.Accepted)

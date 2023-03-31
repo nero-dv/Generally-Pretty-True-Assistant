@@ -50,7 +50,3 @@ As far as rate limiting goes, for the scope of a chat program using one API key 
 For a free trial user (using the allowance that OpenAI provides), this limit is 40,000 TPM, or roughly 160,000 words per minute.
 
 For someone who has added their card for Pay As You Go, Pay-as-you-go users (first 48 hours), this limit is increased to 60,000 TPM, and 90,000 TPM after 48 hours.
-
-For some perspective, this is how much they've billed me so far after sending in over 300+ requests:
-
-![rates](img/rates.png)
