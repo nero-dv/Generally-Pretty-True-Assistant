@@ -1,6 +1,6 @@
 # Generally-Pretty-True-Assistant
 
-![GUI](img/gpt-a_screenshot.png)
+![GUI](src/img/gpt-a_screenshot.png)
 
 This Python program uses the OpenAI API to create a chat window that can be customized to meet the user's needs. 
 
