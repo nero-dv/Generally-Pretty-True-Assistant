@@ -1,15 +1,18 @@
+import json
 import sys
+import os
 
+import markdown2
 import tiktoken
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QFont, QFontDatabase, QIcon, QTextCursor
-from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog,
-                               QHBoxLayout, QInputDialog, QLabel, QLineEdit,
-                               QMainWindow, QMenu, QMenuBar, QPushButton,
-                               QSplitter, QTabWidget, QTextEdit, QVBoxLayout,
-                               QWidget)
+from PySide6.QtGui import QAction, QFont, QFontDatabase, QIcon, QTextCursor, QTextOption
+from PySide6.QtWidgets import (QApplication, QComboBox,
+                               QFileDialog, QHBoxLayout, QLabel, QMainWindow,
+                               QMenu, QMenuBar, QPushButton, QSplitter,
+                               QTabWidget, QTextBrowser, QTextEdit,
+                               QVBoxLayout, QWidget)
 
-from InterfaceUtility import ChatInput, ChatModel
+from InterfaceUtility import ChatInput, ChatModel, ApiWindow
 
 
 class MainWindow(QMainWindow):
@@ -19,6 +22,7 @@ class MainWindow(QMainWindow):
         self.assistant_response = []
         self.init_ui()
         self.setWindowIcon(QIcon("img/icon.ico"))
+        self.OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", None)
 
     def init_ui(self):
         fontdb = QFontDatabase()
@@ -55,7 +59,7 @@ class MainWindow(QMainWindow):
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
         self.main_layout = QVBoxLayout()
-        
+
         self.create_menu()
 
         self.model_dropdown = QComboBox()
@@ -63,14 +67,16 @@ class MainWindow(QMainWindow):
         self.model_dropdown.setEnabled(False)
         self.current_model = self.model_dropdown.currentText()
         self.main_layout.addWidget(self.model_dropdown)
-        
+
         self.context_label = QLabel("Number of messages to keep in context: ")
-        self.context_label.setToolTip("The number of messages to keep in context for the AI. \nThe more messages, the more context the AI has to work with, but the longer it takes to generate a response. \nThe default is 2 and is recommended for most use cases. Choice is reflected after pressing submit and is not retroactive.")
+        self.context_label.setToolTip(
+            "The number of messages to keep in context for the AI. \nThe more messages, the more context the AI has to work with, but the longer it takes to generate a response. \nThe default is 2 and is recommended for most use cases. Choice is reflected after pressing submit and is not retroactive."
+        )
         self.context_label.toolTip
         self.context_label.setFont(self.pil_font)
         self.context_label.setAlignment(Qt.AlignRight)
         self.main_layout.addWidget(self.context_label)
-        
+
         self.context_choice = QComboBox()
         for i in range(0, 11):
             self.context_choice.addItem(str(i))
@@ -80,18 +86,22 @@ class MainWindow(QMainWindow):
 
         self.splitter = QSplitter(Qt.Vertical)  # type: ignore
 
-        self.chat = QTextEdit()
-        self.chat.setReadOnly(True)
-        self.chat.setDocument
+        self.chat = QTextBrowser()
         self.chat.setFont(self.response_font)
         self.chat.setFontPointSize(11)
         self.chat.setPlaceholderText("Your assistant's response will appear here")
+        self.chat.setAcceptRichText(True)
+        self.chat.setWordWrapMode(QTextOption.WrapAtWordBoundaryOrAnywhere)
+        self.chat.setReadOnly(True)
         self.splitter.addWidget(self.chat)
-        
+
         self.size_button_widget = QWidget()
         self.size_button_layout = QHBoxLayout()
+        self.size_button_layout.setAlignment(Qt.AlignRight)
         self.minus_button = QPushButton("-")
+        self.minus_button.setFixedWidth(30)
         self.plus_button = QPushButton("+")
+        self.plus_button.setFixedWidth(30)
         self.plus_button.clicked.connect(self.increase_font_size)
         self.minus_button.clicked.connect(self.decrease_font_size)
         self.size_button_layout.addWidget(self.minus_button)
@@ -106,9 +116,8 @@ class MainWindow(QMainWindow):
         self.input_text_edit.setAcceptRichText(False)
         self.splitter.addWidget(self.input_text_edit)
 
-
         self.parsed_info_label = QLabel(
-            f"Token count: 0\tWord count: 0,\tCharacter count: 0\n(Token Counts are estimated with Tiktoken and don't include special tokens or tokens added by the model and its response)"
+            f"Token Counts are estimated with Tiktoken and don't include special tokens or tokens added by the model and its response"
         )
         self.parsed_info_label.setWordWrap(True)
         self.parsed_info_label.setFont(self.pil_font)
@@ -118,7 +127,7 @@ class MainWindow(QMainWindow):
         self.first_tab_widget = QWidget()
         self.first_tab_layout = QVBoxLayout()
         self.first_tab_layout.addWidget(self.splitter)
-        self.splitter.setSizes([570, 5, 200, 60, 50])
+        self.splitter.setSizes([600, 10, 210, 80])
 
         self.bottom_layout = QHBoxLayout()
         self.submit_button = QPushButton("Submit")
@@ -197,12 +206,13 @@ class MainWindow(QMainWindow):
         self.export_history_action = add_menu_action(
             file_menu, "&Export History", "Ctrl+E", self.export_history
         )
-        self.set_api_action = add_menu_action(
-            file_menu, "&Set API Key", "Ctrl+K", self.set_api_key
-        )
-        # self.api_key_option = add_menu_action(
-        #     file_menu, "&API Key Manager", "Ctrl+M", self.api_key_manager
+        # self.set_api_action = add_menu_action(
+        #     file_menu, "&Set API Key", "Ctrl+K", self.set_api_key
         # )
+        self.api_key_option = add_menu_action(
+            file_menu, "&API Key Manager", "Ctrl+M", self.api_key_manager
+        )
+        
         self.quit_action = add_menu_action(file_menu, "&Quit", "Ctrl+Q", self.close)
 
         # Menu two
@@ -224,7 +234,7 @@ class MainWindow(QMainWindow):
 
     def save_chat(self):
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "Save Chat", "", "MD Files (*.MD);;All Files (*)"
+            self, "Save Chat", ".MD", "MD Files (*.MD);;All Files (*)"
         )
 
         if file_path:
@@ -233,37 +243,38 @@ class MainWindow(QMainWindow):
 
     def export_history(self):
         file_path, _ = QFileDialog.getSaveFileName(
-            self, "Export Raw History", "", "Text Files (*.txt);;All Files (*)"
+            self, "Export Raw History", ".json", "JSON Files (*.json);;All Files (*)"
         )
         if file_path:
             with open(file_path, "w") as file:
                 file.write(self.history.toPlainText())
 
-    def set_api_key(self):
-        # Use a dialog to get the API key
-        api_key, ok = QInputDialog.getText(
-            self, "QInputDialog.getText()", "API Key:", QLineEdit.Normal  # type: ignore
-        )
-        if ok and api_key:
-            self.save_api_key(api_key)
+    # def set_api_key(self):
+    #     # Use a dialog to get the API key
+    #     api_key, ok = QInputDialog.getText(
+    #         self, "QInputDialog.getText()", "API Key:", QLineEdit.Normal  # type: ignore
+    #     )
 
-    def save_api_key(self, api_key):
-        with open("api_key.txt", "w") as file:
-            file.write(api_key)
-        return api_key
 
-    def read_api_key(self):
-        try:
-            with open("api_key.txt", "r") as file:
-                return file.read()
-        except FileNotFoundError:
-            # Use a dialog to get the API key
-            self.set_api_key()
+    # def save_api_key(self, api_key):
+    #     with open("api_key.aik", "w") as file:
+    #         file.write(api_key)
+    #         self.OPENAI_API_KEY = api_key
+    #     return api_key, self.OPENAI_API_KEY
+
+    # def read_api_key(self):
+    #     try:
+    #         with open("api_key.aik", "r") as file:
+    #             return file.read()
+    #     except FileNotFoundError:
+    #         # Use a dialog to get the API key
+    #         self.set_api_key()
 
     def api_key_manager(self):
-        # TODO: Add a dialog to manage API keys along with a way to select which one to use and a way to delete them. API key utilization should be tracked and shown in the manager.
-        pass
-
+        get_key = ApiWindow(self).key
+        self.OPENAI_API_KEY = get_key
+        
+        
     def copy_text(self):
         self.input_text_edit.copy()
 
@@ -277,6 +288,9 @@ class MainWindow(QMainWindow):
         self.input_text_edit.selectAll()
 
     def clear_chat(self):
+        self.input_text_list = []
+        self.assistant_response = []
+        self.history.clear()
         self.chat.clear()
 
     def parse_text(self):
@@ -292,29 +306,48 @@ class MainWindow(QMainWindow):
         return f"Token count: {num_tokens}\tWord count: {len(text.split())},\tCharacter count: {len(text)}"
     
     def submit_text(self):
+        if self.input_text_edit.toPlainText() == "" or self.input_text_edit.toPlainText() == " ":
+            return
+        if self.OPENAI_API_KEY == "" or self.OPENAI_API_KEY is None:
+            run_api_key_manager = ApiWindow()
+            self.OPENAI_API_KEY = run_api_key_manager.result()
+
         self.input_text_list.append(self.input_text_edit.toPlainText())
         self.num_contexts = self.context_choice.currentIndex() + 1
-        response = ChatModel().submit_text(
+        
+        response = ChatModel().submit_text(self.OPENAI_API_KEY,
             self.input_text_list[-1 * self.num_contexts :],
             self.assistant_response[-1 * (self.num_contexts - 1) :],
         )
-        self.assistant_response.append(response.choices[0].message.content)
-        token_usage = self.token_count(response)
-        self.parse_response(response, token_usage)
-        self.history.append(f"{response},")
+        if response:
+            self.assistant_response.append(response.choices[0].message.content)
+            token_usage = self.token_count(response)
+            self.parse_response(response, token_usage)
+            self.history.append(json.dumps(response, indent=4))
+        elif self.OPENAI_API_KEY == "" or self.OPENAI_API_KEY is None:
+            self.assistant_response.append("API Key was not set.")
+            self.parse_response(response, "")
+            return
+        else:
+            self.assistant_response.append("No response from OpenAI.")
+            self.parse_response("", "")
         self.input_text_edit.clear()
+        return
 
     def parse_response(self, response, token_usage):
         print(self.input_text_list[-1])
         print(self.assistant_response[-1])
-        self.chat.append(f"{self.input_text_list[-1]}")
-        self.chat.append("\n\t" + "-" * 60 + "\n")
-        self.chat.append(f"{self.assistant_response[-1]}")
+        markdown = self.chat.toMarkdown() if self.chat.toMarkdown() else ""
+        markdown = markdown + (f"####{self.input_text_list[-1]}\n")
+        markdown = markdown + ("___" + "\n<br>\n")
+        markdown = markdown + (f"{self.assistant_response[-1]}\n")
+        markdown = markdown + ("\n<br>\n")
+        markdown = markdown + (token_usage)
+        markdown = markdown + ("___" + "\n<br>\n<br>\n")
+        html_text = markdown2.markdown(markdown)
+        self.chat.setHtml(html_text)
         self.chat.moveCursor(QTextCursor.End)
-        self.chat.append("\n")
-        self.chat.append(token_usage)
-        self.chat.append("\t" + "-" * 60 + "\n")
-
+    
     def token_count(self, response):
         # Get usage information from the API response
         completion_tokens = response.usage.completion_tokens
@@ -326,6 +359,35 @@ class MainWindow(QMainWindow):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
+    color_scheme = {
+        "primary": "#95a5a6",
+        "secondary": "#1c1c24",
+        "success": "#28a745",
+        "danger": "#dc3545",
+        "warning": "#ffc107",
+        "info": "#869495",
+        "light": "#f8f9fa",
+        "dark": "#343a40",
+    }
+    style_sheet = (
+        """
+    QPushButton {
+        background-color: %(primary)s;
+        color: white;
+        border: 1px solid %(primary)s;
+        padding: 1px;
+        border-radius: 10px;
+    }
+    QPushButton:hover {
+        background-color: %(info)s;
+    }
+    QPushButton:pressed {
+        background-color: %(secondary)s;
+    }
+    """
+        % color_scheme
+    )
+    app.setStyleSheet(style_sheet)
 
     main_window = MainWindow()
     main_window.setWindowTitle("OpenAI API - GPT3.5-Turbo")
