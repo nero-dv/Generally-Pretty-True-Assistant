@@ -2,11 +2,10 @@ import os
 
 import openai
 from PySide6.QtCore import QObject, Qt
-from PySide6.QtWidgets import (QDialog, QDialogButtonBox,
-                               QErrorMessage, QFileDialog, QHBoxLayout,
-                               QInputDialog, QLabel, QLineEdit, QListWidget,
-                               QMessageBox, QSizePolicy, QSplitter, QTextEdit,
-                               QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QErrorMessage,
+                               QFileDialog, QInputDialog, QLabel, QLineEdit,
+                               QListWidget, QMessageBox, QSizePolicy,
+                               QSplitter, QTextEdit, QVBoxLayout, QWidget)
 
 
 class ChatInput(QTextEdit):
@@ -19,8 +18,8 @@ class ChatInput(QTextEdit):
             self.submit_text()
         else:
             super().keyPressEvent(event)
-            
-            
+
+
 class ChatModel(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -39,7 +38,9 @@ class ChatModel(QObject):
                 messages.append({"role": "assistant", "content": assistant_response[i]})
         return messages
 
-    def submit_text(self, OPENAI_API_KEY, input_text, assistant_response, model="gpt-3.5-turbo"):
+    def submit_text(
+        self, OPENAI_API_KEY, input_text, assistant_response, model="gpt-3.5-turbo"
+    ):
         if OPENAI_API_KEY is None:
             print("No API key. Please set one in the menu.")
             error_box = QMessageBox()
@@ -49,13 +50,13 @@ class ChatModel(QObject):
             error_box.setStandardButtons(QMessageBox.Ok)
             error_box.exec()
             return
-        
+
         openai.api_key = OPENAI_API_KEY
         try:
             response = openai.ChatCompletion.create(
                 model=model,
                 messages=self.message_context(input_text, assistant_response),
-                temperature=.6,
+                temperature=0.6,
             )
         except openai.error.AuthenticationError:
             print("Invalid API key. Please set one in the menu.")
@@ -67,9 +68,10 @@ class ChatModel(QObject):
             error_box.exec()
             return
         except Exception as e:
-            return f'Request failed: {e}'
+            return f"Request failed: {e}"
         return response
-    
+
+
 class ApiWindow(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -127,9 +129,9 @@ class ApiWindow(QDialog):
         ) and self.none_selected():
             return False
         return True
-    
+
     def handle_double_click(self):
-        
+
         self.handle_accept()
 
     def handle_accept(self, event=None):
@@ -139,14 +141,14 @@ class ApiWindow(QDialog):
                 self.key = str(self.key)
                 self.done(QDialog.Accepted)
                 self.result()
-                
+
             except Exception as e:
                 print(e)
         elif self.none_selected():
             error_dialog = QErrorMessage()
             error_dialog.showMessage("No API key selected")
             error_dialog.setWindowTitle("Error")
-            
+
     def result(self):
         return self.key
 
@@ -195,7 +197,6 @@ class ApiWindow(QDialog):
 
 
 class SmallKeyManager(QWidget):
-
     def set_key(self):
         api_key, ok = QInputDialog.getText(
             self, "QInputDialog.getText()", "API Key:", QLineEdit.Normal  # type: ignore

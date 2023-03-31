@@ -1,18 +1,18 @@
 import json
-import sys
 import os
+import sys
 
 import markdown2
 import tiktoken
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QFont, QFontDatabase, QIcon, QTextCursor, QTextOption
-from PySide6.QtWidgets import (QApplication, QComboBox,
-                               QFileDialog, QHBoxLayout, QLabel, QMainWindow,
-                               QMenu, QMenuBar, QPushButton, QSplitter,
-                               QTabWidget, QTextBrowser, QTextEdit,
-                               QVBoxLayout, QWidget)
+from PySide6.QtGui import (QAction, QFont, QFontDatabase, QIcon, QTextCursor,
+                           QTextOption)
+from PySide6.QtWidgets import (QApplication, QComboBox, QFileDialog,
+                               QHBoxLayout, QLabel, QMainWindow, QMenu,
+                               QMenuBar, QPushButton, QSplitter, QTabWidget,
+                               QTextBrowser, QTextEdit, QVBoxLayout, QWidget)
 
-from InterfaceUtility import ChatInput, ChatModel, ApiWindow
+from InterfaceUtility import ApiWindow, ChatInput, ChatModel
 
 
 class MainWindow(QMainWindow):
@@ -209,7 +209,7 @@ class MainWindow(QMainWindow):
         self.api_key_option = add_menu_action(
             file_menu, "&API Key Manager", "Ctrl+M", self.api_key_manager
         )
-        
+
         self.quit_action = add_menu_action(file_menu, "&Quit", "Ctrl+Q", self.close)
 
         # Menu two
@@ -249,8 +249,7 @@ class MainWindow(QMainWindow):
     def api_key_manager(self):
         get_key = ApiWindow(self).key
         self.OPENAI_API_KEY = get_key
-        
-        
+
     def copy_text(self):
         self.input_text_edit.copy()
 
@@ -280,9 +279,12 @@ class MainWindow(QMainWindow):
         assert encoding.decode(encoding.encode(text)) == text
         num_tokens = len(encoding.encode(text))
         return f"Token count: {num_tokens}\tWord count: {len(text.split())},\tCharacter count: {len(text)}"
-    
+
     def submit_text(self):
-        if self.input_text_edit.toPlainText() == "" or self.input_text_edit.toPlainText() == " ":
+        if (
+            self.input_text_edit.toPlainText() == ""
+            or self.input_text_edit.toPlainText() == " "
+        ):
             return
         if self.OPENAI_API_KEY == "" or self.OPENAI_API_KEY is None:
             run_api_key_manager = ApiWindow()
@@ -290,8 +292,9 @@ class MainWindow(QMainWindow):
 
         self.input_text_list.append(self.input_text_edit.toPlainText())
         self.num_contexts = self.context_choice.currentIndex() + 1
-        
-        response = ChatModel().submit_text(self.OPENAI_API_KEY,
+
+        response = ChatModel().submit_text(
+            self.OPENAI_API_KEY,
             self.input_text_list[-1 * self.num_contexts :],
             self.assistant_response[-1 * (self.num_contexts - 1) :],
         )
@@ -323,7 +326,7 @@ class MainWindow(QMainWindow):
         html_text = markdown2.markdown(markdown)
         self.chat.setHtml(html_text)
         self.chat.moveCursor(QTextCursor.End)
-    
+
     def token_count(self, response):
         # Get usage information from the API response
         completion_tokens = response.usage.completion_tokens
