@@ -45,16 +45,16 @@ class MainWindow(QMainWindow):
         )
 
         self.response_font = chat_font
-        self.response_font.setPointSize(11)
+        self.response_font.setPointSize(12)
 
         self.input_text_font = chat_font
-        self.input_text_font.setPointSize(11)
+        self.input_text_font.setPointSize(12)
 
         self.history_font = console_font
-        self.history_font.setPointSize(11)
+        self.history_font.setPointSize(12)
 
         self.pil_font = info_font
-        self.pil_font.setPointSize(9)
+        self.pil_font.setPointSize(10)
 
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -167,7 +167,7 @@ class MainWindow(QMainWindow):
         new_size = current_size + 1
         # Set the new font size for the QTextEdit widget
         font = self.chat.currentFont()
-        font.setPointSize(new_size)
+        font.setPointSize(int(new_size))
         self.chat.setCurrentFont(font)
         self.chat.moveCursor(QTextCursor.End)
         self.chat.setVisible(True)
@@ -180,7 +180,7 @@ class MainWindow(QMainWindow):
         new_size = current_size - 1 if current_size >= 1 else 1
         # Set the new font size for the QTextEdit widget
         font = self.chat.currentFont()
-        font.setPointSize(new_size)
+        font.setPointSize(int(new_size))
         self.chat.setCurrentFont(font)
         self.chat.setCurrentFont(font)
         self.chat.moveCursor(QTextCursor.End)
@@ -298,20 +298,18 @@ class MainWindow(QMainWindow):
             self.input_text_list[-1 * self.num_contexts :],
             self.assistant_response[-1 * (self.num_contexts - 1) :],
         )
-        if response:
-            self.assistant_response.append(response.choices[0].message.content)
-            token_usage = self.token_count(response)
-            self.parse_response(response, token_usage)
-            self.history.append(json.dumps(response, indent=4))
-        elif self.OPENAI_API_KEY == "" or self.OPENAI_API_KEY is None:
+        print(response)
+
+        self.assistant_response.append(response.choices[0].message.content)
+        token_usage = self.token_count(response)
+        self.parse_response(response, token_usage)
+        self.history.append(json.dumps(response, indent=4))
+        if self.OPENAI_API_KEY == "" or self.OPENAI_API_KEY is None:
             self.assistant_response.append("API Key was not set.")
             self.parse_response(response, "")
             return
-        else:
-            self.assistant_response.append("No response from OpenAI.")
-            self.parse_response("", "")
         self.input_text_edit.clear()
-        return
+
 
     def parse_response(self, response, token_usage):
         print(self.input_text_list[-1])
